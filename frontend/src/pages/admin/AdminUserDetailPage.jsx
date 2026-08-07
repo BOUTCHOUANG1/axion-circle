@@ -157,10 +157,10 @@ export default function AdminUserDetailPage() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-          <StatCard title="Reports submitted" value={user.totalReports || 4} />
-          <StatCard title="Resolved reports" value={2} /> {/* Mocked */}
-          <StatCard title="Credit balance" value={user.creditBalance || 120} />
-          <StatCard title="Credits redeemed" value={318} /> {/* Mocked */}
+          <StatCard title="Reports submitted" value={user.totalReports || 0} />
+          <StatCard title="Resolved reports" value={user.resolvedReports || 0} />
+          <StatCard title="Credit balance" value={user.creditBalance || 0} />
+          <StatCard title="Credits redeemed" value={user.creditsRedeemed || 0} />
         </div>
 
         {/* Tabs navigation */}
@@ -187,9 +187,9 @@ export default function AdminUserDetailPage() {
         {/* Tab Content */}
         <div className="mt-2">
           {activeTab === 'Profile Details' && <ProfileDetailsTab user={user} />}
-          {activeTab === 'Reports' && <ReportsTab />}
-          {activeTab === 'Rewards' && <RewardsTab />}
-          {activeTab === 'Activity' && <ActivityTab />}
+          {activeTab === 'Reports' && <ReportsTab userId={user.id} />}
+          {activeTab === 'Rewards' && <RewardsTab userId={user.id} />}
+          {activeTab === 'Activity' && <ActivityTab userId={user.id} />}
         </div>
       </div>
     </AdminLayout>
@@ -267,15 +267,39 @@ const ProfileDetailsTab = ({ user }) => (
   </div>
 );
 
-const ReportsTab = () => {
-  const mockReports = [
-    { id: 'CR-10208', category: 'Blocked Drain', location: '15 Greenway Drive, Lekki, Lagos', date: '2026-02-23', status: 'In Progress', statusColor: 'text-[#9333EA]', dotColor: 'bg-[#9333EA]' },
-    { id: 'CR-10209', category: 'Illegal Dumping', location: '22 Maple Street, Victoria Island, Lagos', date: '2026-02-24', status: 'Pending', statusColor: 'text-[#F59E0B]', dotColor: 'bg-[#F59E0B]' },
-    { id: 'CR-10210', category: 'Overflowing Bin', location: '30 Ocean Breeze, Ikoyi, Lagos', date: '2026-02-25', status: 'Approved', statusColor: 'text-[#127C2F]', dotColor: 'bg-[#127C2F]' },
-    { id: 'CR-10211', category: 'Blocked Drain', location: '45 Sunset Boulevard, Surulere, Lagos', date: '2026-02-26', status: 'Approved', statusColor: 'text-[#127C2F]', dotColor: 'bg-[#127C2F]' },
-    { id: 'CR-10212', category: 'Commercial Waste', location: '78 Riverside Road, Yaba, Lagos', date: '2026-02-27', status: 'Acknowledged', statusColor: 'text-[#3B82F6]', dotColor: 'bg-[#3B82F6]' },
-    { id: 'CR-10213', category: 'Street Litter', location: '101 Hillside Crescent, Apapa, Lagos', date: '2026-02-28', status: 'Rejected', statusColor: 'text-[#EF4444]', dotColor: 'bg-[#EF4444]' },
-  ];
+const ReportsTab = ({ userId }) => {
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  useEffect(() => {
+    const fetchReports = async () => {
+      setLoading(true);
+      try {
+        const res = await api.get(`/admin/users/${userId}/reports?page=${page}&size=10`);
+        const pageData = res.data?.data || res.data;
+        setReports(pageData.content || []);
+        setTotalPages(pageData.totalPages || 1);
+      } catch (err) {
+        console.error('Failed to load reports', err);
+        const errMsg = err.response?.data?.message || err.response?.data?.error || err.message;
+        toast.error(`Failed to load reports: ${errMsg}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchReports();
+  }, [userId, page]);
+
+  const getStatusColors = (status) => {
+    const s = (status || '').toUpperCase();
+    if (s.includes('PROGRESS')) return { text: 'text-[#9333EA]', dot: 'bg-[#9333EA]' };
+    if (s.includes('PENDING')) return { text: 'text-[#F59E0B]', dot: 'bg-[#F59E0B]' };
+    if (s.includes('APPROV') || s.includes('RESOLV')) return { text: 'text-[#127C2F]', dot: 'bg-[#127C2F]' };
+    if (s.includes('REJECT')) return { text: 'text-[#EF4444]', dot: 'bg-[#EF4444]' };
+    return { text: 'text-[#3B82F6]', dot: 'bg-[#3B82F6]' };
+  };
 
   return (
     <div className="bg-white border border-white-stroke rounded-2xl shadow-sm overflow-hidden flex flex-col">
@@ -284,56 +308,72 @@ const ReportsTab = () => {
         <Link to="/admin/reports" className="text-primary font-semibold text-sm hover:underline">View in Report</Link>
       </div>
       
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[800px]">
-          <thead>
-            <tr className="bg-white border-b border-white-stroke text-xs font-semibold text-paragraph h-[44px]">
-              <th className="px-5 py-3 whitespace-nowrap">Reports ID</th>
-              <th className="px-5 py-3 whitespace-nowrap">Category</th>
-              <th className="px-5 py-3 whitespace-nowrap">Location</th>
-              <th className="px-5 py-3 whitespace-nowrap">Date</th>
-              <th className="px-5 py-3 whitespace-nowrap flex items-center gap-1">Status <ChevronDown className="w-3 h-3 opacity-50" /></th>
-              <th className="px-5 py-3 w-12"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white-stroke text-sm">
-            {mockReports.map((report) => (
-              <tr key={report.id} className="hover:bg-white-bg/50 transition-colors h-[64px]">
-                <td className="px-5 py-3 font-bold text-black">{report.id}</td>
-                <td className="px-5 py-3 text-paragraph">{report.category}</td>
-                <td className="px-5 py-3 text-paragraph">{report.location}</td>
-                <td className="px-5 py-3 text-paragraph">{report.date}</td>
-                <td className="px-5 py-3 whitespace-nowrap">
-                  <div className="flex items-center gap-1.5">
-                    <span className={`w-1.5 h-1.5 rounded-full ${report.dotColor}`}></span>
-                    <span className={`text-[12px] font-bold ${report.statusColor}`}>{report.status}</span>
-                  </div>
-                </td>
-                <td className="px-5 py-3 text-center">
-                  <Link to={`/admin/reports/${report.id}`} className="p-1.5 text-black-icon hover:text-primary transition-colors focus:outline-none inline-block">
-                    <Eye className="w-4 h-4 opacity-70 hover:opacity-100" />
-                  </Link>
-                </td>
+      <div className="overflow-x-auto min-h-[200px]">
+        {loading ? (
+          <div className="flex justify-center items-center h-full py-10">
+            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        ) : reports.length === 0 ? (
+          <div className="flex justify-center items-center h-full py-10 text-paragraph text-sm">
+            No reports found for this user.
+          </div>
+        ) : (
+          <table className="w-full text-left border-collapse min-w-[800px]">
+            <thead>
+              <tr className="bg-white border-b border-white-stroke text-xs font-semibold text-paragraph h-[44px]">
+                <th className="px-5 py-3 whitespace-nowrap">Reports ID</th>
+                <th className="px-5 py-3 whitespace-nowrap">Category</th>
+                <th className="px-5 py-3 whitespace-nowrap">Location</th>
+                <th className="px-5 py-3 whitespace-nowrap">Date</th>
+                <th className="px-5 py-3 whitespace-nowrap flex items-center gap-1">Status <ChevronDown className="w-3 h-3 opacity-50" /></th>
+                <th className="px-5 py-3 w-12"></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-white-stroke text-sm">
+              {reports.map((report) => {
+                const colors = getStatusColors(report.status);
+                const date = report.createdAt ? new Date(report.createdAt).toLocaleDateString() : 'N/A';
+                return (
+                  <tr key={report.id} className="hover:bg-white-bg/50 transition-colors h-[64px]">
+                    <td className="px-5 py-3 font-bold text-black">{report.reportCode || report.id.substring(0, 8)}</td>
+                    <td className="px-5 py-3 text-paragraph">{report.category}</td>
+                    <td className="px-5 py-3 text-paragraph">{report.address || report.areaName || 'Unknown Location'}</td>
+                    <td className="px-5 py-3 text-paragraph">{date}</td>
+                    <td className="px-5 py-3 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`w-1.5 h-1.5 rounded-full ${colors.dot}`}></span>
+                        <span className={`text-[12px] font-bold ${colors.text}`}>{report.status || 'UNKNOWN'}</span>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3 text-center">
+                      <Link to={`/admin/reports/${report.id}`} className="p-1.5 text-black-icon hover:text-primary transition-colors focus:outline-none inline-block">
+                        <Eye className="w-4 h-4 opacity-70 hover:opacity-100" />
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
 
       <div className="p-5 border-t border-white-stroke flex items-center justify-between">
-        <button className="flex items-center gap-2 px-4 py-2 border border-white-stroke rounded-xl text-sm font-semibold text-black hover:bg-white-bg transition-colors bg-white">
+        <button 
+          onClick={() => setPage(Math.max(0, page - 1))}
+          disabled={page === 0 || loading}
+          className="flex items-center gap-2 px-4 py-2 border border-white-stroke rounded-xl text-sm font-semibold text-black hover:bg-white-bg transition-colors bg-white disabled:opacity-50"
+        >
           <ArrowLeft className="w-4 h-4" /> Previous
         </button>
-        <div className="flex items-center gap-1 hidden sm:flex">
-          <button className="w-8 h-8 rounded-lg bg-[#127C2F] text-white text-sm font-bold flex items-center justify-center">1</button>
-          <button className="w-8 h-8 rounded-lg text-paragraph hover:text-black hover:bg-white-bg text-sm font-bold flex items-center justify-center">2</button>
-          <button className="w-8 h-8 rounded-lg text-paragraph hover:text-black hover:bg-white-bg text-sm font-bold flex items-center justify-center">3</button>
-          <span className="px-2 text-paragraph text-sm font-bold">...</span>
-          <button className="w-8 h-8 rounded-lg text-paragraph hover:text-black hover:bg-white-bg text-sm font-bold flex items-center justify-center">8</button>
-          <button className="w-8 h-8 rounded-lg text-paragraph hover:text-black hover:bg-white-bg text-sm font-bold flex items-center justify-center">9</button>
-          <button className="w-8 h-8 rounded-lg text-paragraph hover:text-black hover:bg-white-bg text-sm font-bold flex items-center justify-center">10</button>
+        <div className="text-sm text-paragraph font-bold">
+          Page {page + 1} of {totalPages === 0 ? 1 : totalPages}
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 border border-white-stroke rounded-xl text-sm font-semibold text-black hover:bg-white-bg transition-colors bg-white">
+        <button 
+          onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
+          disabled={page >= totalPages - 1 || loading}
+          className="flex items-center gap-2 px-4 py-2 border border-white-stroke rounded-xl text-sm font-semibold text-black hover:bg-white-bg transition-colors bg-white disabled:opacity-50"
+        >
           Next <ArrowRight className="w-4 h-4" />
         </button>
       </div>
@@ -341,15 +381,37 @@ const ReportsTab = () => {
   );
 };
 
-const RewardsTab = () => {
-  const mockRewards = [
-    { id: 1, name: '₦3,500 Restaurant Gift Card', store: 'FreshMart Yaba', credits: 400, date: '2026-02-23', status: 'Approved', statusColor: 'text-[#127C2F]', dotColor: 'bg-[#127C2F]' },
-    { id: 2, name: '₦1,200 Movie Ticket', store: 'SwiftTel Ikeja', credits: 500, date: '2026-02-24', status: 'Rejected', statusColor: 'text-[#EF4444]', dotColor: 'bg-[#EF4444]' },
-    { id: 3, name: '₦5,000 Online Shopping Credit', store: 'GroceryHub Victoria', credits: 800, date: '2026-02-25', status: 'Approved', statusColor: 'text-[#127C2F]', dotColor: 'bg-[#127C2F]' },
-    { id: 4, name: 'Airtime Top-up', store: 'EcoStore Lagos', credits: 10000, date: '2026-02-26', status: 'Approved', statusColor: 'text-[#127C2F]', dotColor: 'bg-[#127C2F]' },
-    { id: 5, name: '₦2,500 Fitness Class Pass', store: 'MarketPlace Central', credits: 450, date: '2026-02-27', status: 'Approved', statusColor: 'text-[#127C2F]', dotColor: 'bg-[#127C2F]' },
-    { id: 6, name: '₦1,800 Bookstore Coupon', store: 'UrbanGrocer Ikeja', credits: 1029, date: '2026-02-28', status: 'Rejected', statusColor: 'text-[#EF4444]', dotColor: 'bg-[#EF4444]' },
-  ];
+const RewardsTab = ({ userId }) => {
+  const [rewards, setRewards] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  useEffect(() => {
+    const fetchRewards = async () => {
+      setLoading(true);
+      try {
+        const res = await api.get(`/admin/users/${userId}/rewards?page=${page}&size=10`);
+        const pageData = res.data?.data || res.data;
+        setRewards(pageData.content || []);
+        setTotalPages(pageData.totalPages || 1);
+      } catch (err) {
+        console.error('Failed to load rewards', err);
+        const errMsg = err.response?.data?.message || err.response?.data?.error || err.message;
+        toast.error(`Failed to load rewards: ${errMsg}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchRewards();
+  }, [userId, page]);
+
+  const getStatusColors = (status) => {
+    const s = (status || '').toUpperCase();
+    if (s === 'PENDING') return { text: 'text-[#F59E0B]', dot: 'bg-[#F59E0B]' };
+    if (s === 'REJECTED') return { text: 'text-[#EF4444]', dot: 'bg-[#EF4444]' };
+    return { text: 'text-[#127C2F]', dot: 'bg-[#127C2F]' }; // APPROVED
+  };
 
   return (
     <div className="bg-white border border-white-stroke rounded-2xl shadow-sm overflow-hidden flex flex-col">
@@ -357,56 +419,72 @@ const RewardsTab = () => {
         <h3 className="font-heading font-bold text-lg">Reward History</h3>
       </div>
       
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[800px]">
-          <thead>
-            <tr className="bg-white border-b border-white-stroke text-xs font-semibold text-paragraph h-[44px]">
-              <th className="px-5 py-3 w-12">
-                <input type="checkbox" className="w-4 h-4 rounded border-white-stroke text-primary" />
-              </th>
-              <th className="px-5 py-3 whitespace-nowrap">Rewards</th>
-              <th className="px-5 py-3 whitespace-nowrap">Store</th>
-              <th className="px-5 py-3 whitespace-nowrap">Credits</th>
-              <th className="px-5 py-3 whitespace-nowrap">Date</th>
-              <th className="px-5 py-3 whitespace-nowrap flex items-center gap-1">Status <ChevronDown className="w-3 h-3 opacity-50" /></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white-stroke text-sm">
-            {mockRewards.map((reward) => (
-              <tr key={reward.id} className="hover:bg-white-bg/50 transition-colors h-[64px]">
-                <td className="px-5 py-3">
+      <div className="overflow-x-auto min-h-[200px]">
+        {loading ? (
+          <div className="flex justify-center items-center h-full py-10">
+            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        ) : rewards.length === 0 ? (
+          <div className="flex justify-center items-center h-full py-10 text-paragraph text-sm">
+            No rewards history found for this user.
+          </div>
+        ) : (
+          <table className="w-full text-left border-collapse min-w-[800px]">
+            <thead>
+              <tr className="bg-white border-b border-white-stroke text-xs font-semibold text-paragraph h-[44px]">
+                <th className="px-5 py-3 w-12">
                   <input type="checkbox" className="w-4 h-4 rounded border-white-stroke text-primary" />
-                </td>
-                <td className="px-5 py-3 font-bold text-black">{reward.name}</td>
-                <td className="px-5 py-3 text-paragraph">{reward.store}</td>
-                <td className="px-5 py-3 text-paragraph">{reward.credits.toLocaleString()}</td>
-                <td className="px-5 py-3 text-paragraph">{reward.date}</td>
-                <td className="px-5 py-3 whitespace-nowrap">
-                  <div className="flex items-center gap-1.5">
-                    <span className={`w-1.5 h-1.5 rounded-full ${reward.dotColor}`}></span>
-                    <span className={`text-[12px] font-bold ${reward.statusColor}`}>{reward.status}</span>
-                  </div>
-                </td>
+                </th>
+                <th className="px-5 py-3 whitespace-nowrap">Rewards</th>
+                <th className="px-5 py-3 whitespace-nowrap">Category</th>
+                <th className="px-5 py-3 whitespace-nowrap">Credits</th>
+                <th className="px-5 py-3 whitespace-nowrap">Date</th>
+                <th className="px-5 py-3 whitespace-nowrap flex items-center gap-1">Status <ChevronDown className="w-3 h-3 opacity-50" /></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-white-stroke text-sm">
+              {rewards.map((reward) => {
+                const colors = getStatusColors(reward.status);
+                const date = reward.claimedAt ? new Date(reward.claimedAt).toLocaleDateString() : 'N/A';
+                return (
+                  <tr key={reward.id} className="hover:bg-white-bg/50 transition-colors h-[64px]">
+                    <td className="px-5 py-3">
+                      <input type="checkbox" className="w-4 h-4 rounded border-white-stroke text-primary" />
+                    </td>
+                    <td className="px-5 py-3 font-bold text-black">{reward.rewardName || 'Unknown Reward'}</td>
+                    <td className="px-5 py-3 text-paragraph">{reward.rewardCategory || 'N/A'}</td>
+                    <td className="px-5 py-3 text-paragraph">{reward.creditsSpent?.toLocaleString() || 0}</td>
+                    <td className="px-5 py-3 text-paragraph">{date}</td>
+                    <td className="px-5 py-3 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`w-1.5 h-1.5 rounded-full ${colors.dot}`}></span>
+                        <span className={`text-[12px] font-bold ${colors.text}`}>{reward.status || 'UNKNOWN'}</span>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
 
       <div className="p-5 border-t border-white-stroke flex items-center justify-between">
-        <button className="flex items-center gap-2 px-4 py-2 border border-white-stroke rounded-xl text-sm font-semibold text-black hover:bg-white-bg transition-colors bg-white">
+        <button 
+          onClick={() => setPage(Math.max(0, page - 1))}
+          disabled={page === 0 || loading}
+          className="flex items-center gap-2 px-4 py-2 border border-white-stroke rounded-xl text-sm font-semibold text-black hover:bg-white-bg transition-colors bg-white disabled:opacity-50"
+        >
           <ArrowLeft className="w-4 h-4" /> Previous
         </button>
-        <div className="flex items-center gap-1 hidden sm:flex">
-          <button className="w-8 h-8 rounded-lg bg-[#127C2F] text-white text-sm font-bold flex items-center justify-center">1</button>
-          <button className="w-8 h-8 rounded-lg text-paragraph hover:text-black hover:bg-white-bg text-sm font-bold flex items-center justify-center">2</button>
-          <button className="w-8 h-8 rounded-lg text-paragraph hover:text-black hover:bg-white-bg text-sm font-bold flex items-center justify-center">3</button>
-          <span className="px-2 text-paragraph text-sm font-bold">...</span>
-          <button className="w-8 h-8 rounded-lg text-paragraph hover:text-black hover:bg-white-bg text-sm font-bold flex items-center justify-center">8</button>
-          <button className="w-8 h-8 rounded-lg text-paragraph hover:text-black hover:bg-white-bg text-sm font-bold flex items-center justify-center">9</button>
-          <button className="w-8 h-8 rounded-lg text-paragraph hover:text-black hover:bg-white-bg text-sm font-bold flex items-center justify-center">10</button>
+        <div className="text-sm text-paragraph font-bold">
+          Page {page + 1} of {totalPages === 0 ? 1 : totalPages}
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 border border-white-stroke rounded-xl text-sm font-semibold text-black hover:bg-white-bg transition-colors bg-white">
+        <button 
+          onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
+          disabled={page >= totalPages - 1 || loading}
+          className="flex items-center gap-2 px-4 py-2 border border-white-stroke rounded-xl text-sm font-semibold text-black hover:bg-white-bg transition-colors bg-white disabled:opacity-50"
+        >
           Next <ArrowRight className="w-4 h-4" />
         </button>
       </div>
@@ -414,14 +492,30 @@ const RewardsTab = () => {
   );
 };
 
-const ActivityTab = () => {
-  const mockActivities = [
-    { id: 1, title: 'Submit Report', desc: 'Overflowing Bin — Yaba, Lagos', date: '2026-06-10 09:10' },
-    { id: 2, title: 'Schedule Pickup', desc: 'Damaged Chair — Surulere, Lagos', date: '2026-06-13 14:00' },
-    { id: 3, title: 'Update Status', desc: 'Broken Window — Victoria Island, Lagos', date: '2026-06-15 16:45' },
-    { id: 4, title: 'Submit Report', desc: 'Overflowing Bin — Yaba, Lagos', date: '2026-06-10 09:10' },
-    { id: 5, title: 'Request Maintenance', desc: 'Leaking Faucet — Ikoyi, Lagos', date: '2026-06-12 11:30' },
-  ];
+const ActivityTab = ({ userId }) => {
+  const [activities, setActivities] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  useEffect(() => {
+    const fetchActivities = async () => {
+      setLoading(true);
+      try {
+        const res = await api.get(`/admin/users/${userId}/activity?page=${page}&size=10`);
+        const pageData = res.data?.data || res.data;
+        setActivities(pageData.content || []);
+        setTotalPages(pageData.totalPages || 1);
+      } catch (err) {
+        console.error('Failed to load activities', err);
+        const errMsg = err.response?.data?.message || err.response?.data?.error || err.message;
+        toast.error(`Failed to load activities: ${errMsg}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchActivities();
+  }, [userId, page]);
 
   return (
     <div className="bg-white border border-white-stroke rounded-2xl shadow-sm overflow-hidden flex flex-col">
@@ -429,14 +523,56 @@ const ActivityTab = () => {
         <h3 className="font-heading font-bold text-lg">Activity Timeline</h3>
       </div>
       
-      <div className="p-6 flex flex-col gap-4 bg-white-bg/20">
-        {mockActivities.map((activity) => (
-          <div key={activity.id} className="bg-white border border-white-stroke rounded-xl p-5 flex flex-col gap-1.5 shadow-xs">
-            <h4 className="text-lg font-heading font-bold text-black">{activity.title}</h4>
-            <p className="text-sm text-paragraph font-medium">{activity.desc}</p>
-            <p className="text-[13px] text-paragraph mt-1">{activity.date}</p>
+      <div className="p-6 flex flex-col gap-4 bg-white-bg/20 min-h-[200px]">
+        {loading ? (
+          <div className="flex justify-center items-center h-full py-10">
+            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
           </div>
-        ))}
+        ) : activities.length === 0 ? (
+          <div className="flex justify-center items-center h-full py-10 text-paragraph text-sm">
+            No recent activity found.
+          </div>
+        ) : (
+          activities.map((activity, index) => {
+            const date = activity.timestamp || activity.createdAt ? new Date(activity.timestamp || activity.createdAt).toLocaleString() : 'N/A';
+            return (
+              <div key={activity.id || index} className="bg-white border border-white-stroke rounded-xl p-5 flex flex-col gap-1.5 shadow-xs">
+                <div className="flex justify-between items-start">
+                  <h4 className="text-lg font-heading font-bold text-black">{activity.type || activity.title || activity.action || 'Activity'}</h4>
+                  {activity.creditsChange ? (
+                    <span className={`text-sm font-bold ${activity.creditsChange > 0 ? 'text-[#127C2F]' : 'text-[#EF4444]'}`}>
+                      {activity.creditsChange > 0 ? '+' : ''}{activity.creditsChange} pts
+                    </span>
+                  ) : null}
+                </div>
+                <p className="text-sm text-paragraph font-medium">{activity.description || activity.desc}</p>
+                <p className="text-[13px] text-paragraph mt-1">{date}</p>
+              </div>
+            );
+          })
+        )}
+
+        {!loading && totalPages > 1 && (
+          <div className="flex items-center justify-between mt-4">
+            <button 
+              onClick={() => setPage(Math.max(0, page - 1))}
+              disabled={page === 0}
+              className="flex items-center gap-2 px-4 py-2 border border-white-stroke rounded-xl text-sm font-semibold text-black hover:bg-white-bg transition-colors bg-white disabled:opacity-50"
+            >
+              <ArrowLeft className="w-4 h-4" /> Newer
+            </button>
+            <div className="text-sm text-paragraph font-bold">
+              Page {page + 1} of {totalPages}
+            </div>
+            <button 
+              onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
+              disabled={page >= totalPages - 1}
+              className="flex items-center gap-2 px-4 py-2 border border-white-stroke rounded-xl text-sm font-semibold text-black hover:bg-white-bg transition-colors bg-white disabled:opacity-50"
+            >
+              Older <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

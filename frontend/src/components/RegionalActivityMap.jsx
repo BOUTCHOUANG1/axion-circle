@@ -10,6 +10,8 @@ import { Link, useLocation } from 'react-router-dom';
 import MapErrorBoundary from './MapErrorBoundary';
 import ReportListView from './ReportListView';
 import fallbackImage from '../assets/fallback-image.svg';
+import api from '../services/api';
+import toast from 'react-hot-toast';
 
 const timeAgo = (dateStr) => {
   if (!dateStr) return 'Just now';
@@ -138,7 +140,35 @@ export default function RegionalActivityMap({ reports, mapStatus, onRetry }) {
     }
   }, []);
 
+  const [mapMarkers, setMapMarkers] = useState([]);
+  const [markersLoading, setMarkersLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMarkers = async () => {
+      try {
+        const res = await api.get('/reports/map-markers');
+        const data = res.data?.data || res.data;
+        setMapMarkers(data || []);
+      } catch (err) {
+        console.error('Failed to fetch map markers', err);
+        const errMsg = err.response?.data?.message || err.response?.data?.error || err.message;
+        toast.error(`Map markers error: ${errMsg}`);
+      } finally {
+        setMarkersLoading(false);
+      }
+    };
+    fetchMarkers();
+  }, []);
+
   const filteredReports = reports.filter((r) => {
+    if (activeFilter === 'All') return true;
+    if (activeFilter === 'Overflow') return r.category === 'OVERFLOW' || (r.title && r.title.toLowerCase().includes('overflow'));
+    if (activeFilter === 'Illegal Dumping') return r.category === 'ILLEGAL_DUMPING' || (r.title && r.title.toLowerCase().includes('dumping'));
+    if (activeFilter === 'Blocked Drain') return r.category === 'BLOCKED_DRAIN' || (r.title && r.title.toLowerCase().includes('drain'));
+    return true;
+  });
+
+  const filteredMarkers = mapMarkers.filter((r) => {
     if (activeFilter === 'All') return true;
     if (activeFilter === 'Overflow') return r.category === 'OVERFLOW' || (r.title && r.title.toLowerCase().includes('overflow'));
     if (activeFilter === 'Illegal Dumping') return r.category === 'ILLEGAL_DUMPING' || (r.title && r.title.toLowerCase().includes('dumping'));
@@ -215,7 +245,7 @@ export default function RegionalActivityMap({ reports, mapStatus, onRetry }) {
 
       {/* Map Area (Edge to Edge) */}
       <div className="w-full flex-1 min-h-0 bg-[#f0ede5] relative overflow-hidden bg-cover bg-center z-0 block">
-        {mapStatus === 'loading' && (
+        {(mapStatus === 'loading' || markersLoading) && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/50 backdrop-blur-sm z-20">
             <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-2"></div>
             <span className="text-xs font-bold text-primary">Loading live map...</span>
@@ -247,7 +277,7 @@ export default function RegionalActivityMap({ reports, mapStatus, onRetry }) {
             >
               <MapInvalidateSize />
               <MapCenterUpdater center={mapCenter} isActive={userLocationFound} />
-              <MapBoundsFit reports={filteredReports.filter((r) => r.latitude && r.longitude)} userLocationFound={userLocationFound} />
+              <MapBoundsFit reports={filteredMarkers.filter((r) => r.latitude && r.longitude)} userLocationFound={userLocationFound} />
               <MapCenterTracker onCityChange={setCurrentCity} />
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -260,7 +290,7 @@ export default function RegionalActivityMap({ reports, mapStatus, onRetry }) {
                 showCoverageOnHover={false}
                 maxClusterRadius={40}
               >
-                {filteredReports
+                {filteredMarkers
                   .filter((r) => r.latitude && r.longitude) // Ensure coordinates exist
                   .map((report) => (
                   <Marker
@@ -344,7 +374,7 @@ export default function RegionalActivityMap({ reports, mapStatus, onRetry }) {
             </button>
             <h3 className="font-bold text-[11px] sm:text-xs text-black mb-1.5 pr-6">District Overview</h3>
             <p className="text-[9px] sm:text-[10px] text-paragraph leading-relaxed">
-              Displaying {filteredReports.length} total active reports across all locations. Zoom out to view reports outside of {currentCity}.
+              Displaying {filteredMarkers.length} total active reports across all locations. Zoom out to view reports outside of {currentCity}.
             </p>
           </div>
         )}

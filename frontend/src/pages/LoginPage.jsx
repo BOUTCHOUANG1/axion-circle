@@ -275,8 +275,10 @@ export default function LoginPage() {
       const apiErrorMsg = error.response?.data?.message || error.response?.data?.error;
       if (apiErrorMsg && (apiErrorMsg.toLowerCase().includes('suspend') || apiErrorMsg.toLowerCase().includes('remov'))) {
         setServerError('This account has been suspended/removed. Contact support.');
+      } else if (apiErrorMsg && apiErrorMsg.toLowerCase().includes('social login')) {
+        setServerError(apiErrorMsg);
       } else {
-        setServerError('Invalid email or password. If you registered via Google/Facebook, please use the social login buttons.');
+        setServerError(apiErrorMsg || 'Invalid email or password.');
       }
     } finally {
       setIsSubmitting(false);
