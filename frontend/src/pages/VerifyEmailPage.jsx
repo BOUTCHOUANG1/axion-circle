@@ -87,18 +87,8 @@ export default function VerifyEmailPage() {
     setIsSubmitting(true);
     setServerError('');
     try {
-      try {
-        await api.post('/auth/verify-email', { email, code: fullCode });
-        setIsSuccess(true);
-      } catch (err) {
-        if (!err.response || err.response.status === 404 || err.code === 'ECONNABORTED') {
-          console.warn("Endpoint missing or connection failed, mocking email verification success");
-          setIsSuccess(true);
-        } else {
-          // Real backend error (e.g., "Invalid code")
-          throw err;
-        }
-      }
+      await api.post('/auth/verify-email', { email, code: fullCode });
+      setIsSuccess(true);
     } catch (error) {
       const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Invalid or expired verification code.';
       setServerError(errorMsg);

@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../../services/api';
 
-export default function NewRewardModal({ isOpen, onClose, onSuccess, partnerStores = [], editReward = null }) {
+export default function NewRewardModal({ isOpen, onClose, onSuccess, editReward = null }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [partnerStores, setPartnerStores] = useState([]);
   const modalRef = useRef(null);
 
   // Form State
@@ -15,6 +17,14 @@ export default function NewRewardModal({ isOpen, onClose, onSuccess, partnerStor
     stock: 60,
     description: ''
   });
+
+  useEffect(() => {
+    if (isOpen) {
+      api.get('/admin/partner-stores')
+        .then(res => setPartnerStores(res.data?.data || []))
+        .catch(err => console.error('Failed to load partner stores', err));
+    }
+  }, [isOpen]);
 
   // Reset form or populate on open
   useEffect(() => {
@@ -39,7 +49,7 @@ export default function NewRewardModal({ isOpen, onClose, onSuccess, partnerStor
         });
       }
     }
-  }, [isOpen, editReward, partnerStores]);
+  }, [isOpen, editReward, partnerStores.length]);
 
   // Focus trap and escape key
   useEffect(() => {
@@ -77,25 +87,29 @@ export default function NewRewardModal({ isOpen, onClose, onSuccess, partnerStor
 
     setIsSubmitting(true);
     try {
-      // MOCK API CALL - since admin endpoints for creating rewards are likely missing
-      // In production: await api.post('/admin/rewards', formData) or PUT
+      let savedReward;
+      const payload = {
+        ...formData,
+        quantityAvailable: formData.stock,
+        isActive: formData.status === 'ACTIVE',
+      };
       
-      await new Promise(resolve => setTimeout(resolve, 800));
+      if (editReward && editReward.id) {
+        const res = await api.put(`/admin/rewards/${editReward.id}`, payload);
+        savedReward = res.data?.data;
+      } else {
+        const res = await api.post('/admin/rewards', payload);
+        savedReward = res.data?.data;
+      }
       
       toast.success(editReward && editReward.id ? 'Reward updated successfully' : 'Reward created successfully');
       
       if (onSuccess) {
-        const partner = partnerStores.find(p => p.id === formData.partnerId) || { name: 'Unknown Partner' };
-        onSuccess({
-          ...formData,
-          id: (editReward && editReward.id) ? editReward.id : Math.random().toString(36).substr(2, 9),
-          partnerName: partner.name, // Usually the backend returns this expanded
-          createdAt: new Date().toISOString()
-        });
+        onSuccess(savedReward || payload);
       }
       onClose();
     } catch (error) {
-      toast.error('Failed to save reward');
+      toast.error(error.response?.data?.message || 'Failed to save reward');
     } finally {
       setIsSubmitting(false);
     }

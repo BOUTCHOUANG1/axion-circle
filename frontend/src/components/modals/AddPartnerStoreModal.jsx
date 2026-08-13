@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../../services/api';
 
 export default function AddPartnerStoreModal({ isOpen, onClose, onSuccess, editStore = null }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -10,12 +11,7 @@ export default function AddPartnerStoreModal({ isOpen, onClose, onSuccess, editS
   const [formData, setFormData] = useState({
     name: '',
     category: '',
-    phone: '',
-    email: '',
-    contactPerson: '',
     location: '',
-    address: '',
-    description: '',
     monthlyLimit: 5000,
     qrStatus: 'PENDING',
     active: true
@@ -28,26 +24,17 @@ export default function AddPartnerStoreModal({ isOpen, onClose, onSuccess, editS
         setFormData({
           name: editStore.name || '',
           category: editStore.category || '',
-          phone: editStore.phone || '',
-          email: editStore.email || '',
-          contactPerson: editStore.contactPerson || '',
           location: editStore.location || '',
-          address: editStore.address || '',
-          description: editStore.description || '',
-          monthlyLimit: editStore.monthlyLimit || 5000,
+          monthlyLimit: editStore.redemptionLimit || editStore.monthlyLimit || 5000,
           qrStatus: editStore.qrStatus || 'PENDING',
+          status: editStore.status || 'ACTIVE',
           active: editStore.active !== false
         });
       } else {
         setFormData({
           name: '',
           category: '',
-          phone: '',
-          email: '',
-          contactPerson: '',
           location: '',
-          address: '',
-          description: '',
           monthlyLimit: 5000,
           qrStatus: 'PENDING',
           active: true
@@ -85,26 +72,37 @@ export default function AddPartnerStoreModal({ isOpen, onClose, onSuccess, editS
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.email || !formData.phone) {
-      toast.error('Please fill in all required fields');
+    if (!formData.name) {
+      toast.error('Please fill in the store name');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      // MOCK API CALL - since backend endpoints are missing
-      // In production: await api.post('/admin/partner-stores', formData) or PUT /admin/partner-stores/{id}
-      
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      toast.success(editStore && editStore.id ? 'Store updated successfully' : 'Store created successfully');
-      
+      const payload = {
+        ...formData,
+        redemptionLimit: formData.monthlyLimit,
+        monthlyLimit: formData.monthlyLimit
+      };
       if (onSuccess) {
-        onSuccess({
-          ...formData,
-          id: (editStore && editStore.id) ? editStore.id : Math.random().toString(36).substr(2, 9),
-          createdAt: new Date().toISOString()
-        });
+        let savedStore;
+        if (editStore && editStore.id) {
+          const res = await api.put(`/admin/partner-stores/${editStore.id}`, payload);
+          savedStore = res.data?.data;
+        } else {
+          const res = await api.post('/admin/partner-stores', payload);
+          savedStore = res.data?.data;
+        }
+        
+        toast.success(editStore && editStore.id ? 'Store updated successfully' : 'Store created successfully');
+        onSuccess(savedStore || payload);
+      } else {
+        if (editStore && editStore.id) {
+          await api.put(`/admin/partner-stores/${editStore.id}`, payload);
+        } else {
+          await api.post('/admin/partner-stores', payload);
+        }
+        toast.success(editStore && editStore.id ? 'Store updated successfully' : 'Store created successfully');
       }
       onClose();
     } catch (error) {
@@ -193,50 +191,7 @@ export default function AddPartnerStoreModal({ isOpen, onClose, onSuccess, editS
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="phone" className="block text-sm font-semibold text-black mb-1.5">Contact Phone No</label>
-                  <input
-                    type="tel"
-                    id="phone"
-                    name="phone"
-                    required
-                    value={formData.phone}
-                    onChange={handleChange}
-                    placeholder="no here"
-                    className="w-full px-4 py-2.5 bg-white border border-white-stroke rounded-xl text-black text-sm focus:outline-none focus:border-primary transition-colors"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="email" className="block text-sm font-semibold text-black mb-1.5">Contact Email</label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    required
-                    value={formData.email}
-                    onChange={handleChange}
-                    placeholder="example@gmail.com"
-                    className="w-full px-4 py-2.5 bg-white border border-white-stroke rounded-xl text-black text-sm focus:outline-none focus:border-primary transition-colors"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="contactPerson" className="block text-sm font-semibold text-black mb-1.5">Contact person</label>
-                  <input
-                    type="text"
-                    id="contactPerson"
-                    name="contactPerson"
-                    value={formData.contactPerson}
-                    onChange={handleChange}
-                    placeholder="e.g. John Doe"
-                    className="w-full px-4 py-2.5 bg-white border border-white-stroke rounded-xl text-black text-sm focus:outline-none focus:border-primary transition-colors"
-                  />
-                </div>
-
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label htmlFor="location" className="block text-sm font-semibold text-black mb-1.5">Location / area</label>
                   <input
@@ -245,35 +200,12 @@ export default function AddPartnerStoreModal({ isOpen, onClose, onSuccess, editS
                     name="location"
                     value={formData.location}
                     onChange={handleChange}
-                    placeholder="e.g. Lagos Island"
+                    placeholder="Okpanam, Nigeria"
                     className="w-full px-4 py-2.5 bg-white border border-white-stroke rounded-xl text-black text-sm focus:outline-none focus:border-primary transition-colors"
                   />
                 </div>
               </div>
 
-              <div>
-                <label htmlFor="address" className="block text-sm font-semibold text-black mb-1.5">Street Address</label>
-                <input
-                  type="text"
-                  id="address"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2.5 bg-white border border-white-stroke rounded-xl text-black text-sm focus:outline-none focus:border-primary transition-colors"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="description" className="block text-sm font-semibold text-black mb-1.5">Description</label>
-                <textarea
-                  id="description"
-                  name="description"
-                  rows="3"
-                  value={formData.description}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2.5 bg-white border border-white-stroke rounded-xl text-black text-sm focus:outline-none focus:border-primary transition-colors resize-none"
-                />
-              </div>
             </div>
 
             <hr className="border-white-stroke" />
@@ -284,7 +216,7 @@ export default function AddPartnerStoreModal({ isOpen, onClose, onSuccess, editS
                 Redemption Configuration
               </h3>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label htmlFor="monthlyLimit" className="block text-sm font-semibold text-black mb-1.5">Monthly redemption limit (credits)</label>
                   <input
@@ -297,43 +229,6 @@ export default function AddPartnerStoreModal({ isOpen, onClose, onSuccess, editS
                     className="w-full px-4 py-2.5 bg-white border border-white-stroke rounded-xl text-black text-sm focus:outline-none focus:border-primary transition-colors"
                   />
                 </div>
-
-                <div>
-                  <label htmlFor="qrStatus" className="block text-sm font-semibold text-black mb-1.5">QR Status</label>
-                  <div className="relative">
-                    <select
-                      id="qrStatus"
-                      name="qrStatus"
-                      value={formData.qrStatus}
-                      onChange={handleChange}
-                      className="w-full px-4 py-2.5 bg-white border border-white-stroke rounded-xl text-paragraph text-sm focus:outline-none focus:border-primary transition-colors appearance-none pr-10"
-                    >
-                      <option value="PENDING">Pending</option>
-                      <option value="ACTIVE">Active</option>
-                      <option value="SUSPENDED">Suspended</option>
-                    </select>
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                      <svg className="w-4 h-4 text-black-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between px-4 py-4 bg-white border border-white-stroke rounded-xl">
-                <div>
-                  <span className="block text-sm font-semibold text-black">Store is Active</span>
-                  <span className="block text-xs text-paragraph mt-0.5">Inactive stores cannot accept CleanCredits redemptions.</span>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer ml-4 shrink-0">
-                  <input
-                    type="checkbox"
-                    name="active"
-                    className="sr-only peer"
-                    checked={formData.active}
-                    onChange={handleChange}
-                  />
-                  <div className="w-11 h-6 bg-white-stroke peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                </label>
               </div>
             </div>
 

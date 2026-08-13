@@ -1,12 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, ArrowLeft, ArrowRight, Trash2, X, Edit } from 'lucide-react';
-import { MOCK_REWARD_CATALOG, MOCK_PARTNER_STORES } from './mockData';
 import toast from 'react-hot-toast';
 import NewRewardModal from '../../../components/modals/NewRewardModal';
+import api from '../../../services/api';
 
 export default function RewardCatalogTab({ isModalOpen, setIsModalOpen }) {
-  const [rewards, setRewards] = useState(MOCK_REWARD_CATALOG);
+  const [rewards, setRewards] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchRewards = async () => {
+    try {
+      setIsLoading(true);
+      const res = await api.get('/admin/rewards');
+      setRewards(res.data?.data || []);
+    } catch (error) {
+      toast.error('Failed to load reward catalog');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRewards();
+  }, []);
   
   const [itemToDelete, setItemToDelete] = useState(null);
   const [editingReward, setEditingReward] = useState(null);
@@ -34,17 +51,23 @@ export default function RewardCatalogTab({ isModalOpen, setIsModalOpen }) {
     });
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (itemToDelete) {
-      setRewards(prev => prev.filter(r => r.id !== itemToDelete.id));
-      toast.success('Reward deleted successfully');
-      setItemToDelete(null);
+      try {
+        await api.delete(`/admin/rewards/${itemToDelete.id}`);
+        setRewards(prev => prev.filter(r => r.id !== itemToDelete.id));
+        toast.success('Reward deleted successfully');
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to delete reward');
+      } finally {
+        setItemToDelete(null);
+      }
     }
   };
 
   const filteredRewards = rewards.filter(rew => 
-    rew.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    rew.store.toLowerCase().includes(searchTerm.toLowerCase())
+    (rew.name || '').toLowerCase().includes((searchTerm || '').toLowerCase()) || 
+    (rew.store?.name || rew.store || '').toLowerCase().includes((searchTerm || '').toLowerCase())
   );
 
   return (
@@ -77,7 +100,15 @@ export default function RewardCatalogTab({ isModalOpen, setIsModalOpen }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-white-stroke text-sm">
-            {filteredRewards.length === 0 ? (
+            {isLoading ? (
+              <tr>
+                <td colSpan="6" className="px-5 py-12 text-center">
+                  <div className="flex justify-center">
+                    <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                </td>
+              </tr>
+            ) : filteredRewards.length === 0 ? (
               <tr>
                 <td colSpan="6" className="px-5 py-12 text-center text-paragraph">
                   No rewards found in catalog.
@@ -92,30 +123,39 @@ export default function RewardCatalogTab({ isModalOpen, setIsModalOpen }) {
                     </span>
                   </td>
                   <td className="px-4 py-4 font-bold text-sm text-primary">
-                    {rew.credits.toLocaleString()}
+                    {((rew.creditsRequired ?? rew.credits) || 0).toLocaleString()}
                   </td>
                   <td className="px-4 py-4 text-[#4B5563] font-medium text-sm">
-                    {rew.store}
+                    {typeof rew.store === 'object' ? rew.store?.name : rew.store || 'Unknown'}
                   </td>
                   <td className="px-4 py-4 text-[#4B5563] font-medium text-sm">
-                    {rew.limit}
+                    {rew.quantityAvailable ?? 'N/A'}
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-1.5">
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${rew.status === 'Draft' ? 'bg-[#F59E0B]' : 'bg-[#127C2F]'}`}></span>
-                      <span className={`text-[13px] font-bold ${rew.status === 'Draft' ? 'text-[#F59E0B]' : 'text-[#127C2F]'}`}>
-                        {rew.status}
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${!rew.isActive ? 'bg-[#F59E0B]' : 'bg-[#127C2F]'}`}></span>
+                      <span className={`text-[13px] font-bold ${!rew.isActive ? 'text-[#F59E0B]' : 'text-[#127C2F]'}`}>
+                        {rew.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </div>
                   </td>
-                  <td className="px-4 py-4 text-center">
-                    <button 
-                      onClick={() => setItemToDelete(rew)}
-                      className="p-2 text-alert-error hover:bg-alert-errorLight transition-colors focus:outline-none bg-white-bg rounded-lg mx-auto block"
-                      title="Delete Reward"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                  <td className="px-4 py-4">
+                    <div className="flex justify-center gap-2">
+                      <button 
+                        onClick={() => handleEdit(rew)}
+                        className="p-2 text-black-icon hover:text-primary transition-colors focus:outline-none bg-white-bg rounded-lg"
+                        title="Edit Reward"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => setItemToDelete(rew)}
+                        className="p-2 text-alert-error hover:bg-alert-errorLight transition-colors focus:outline-none bg-white-bg rounded-lg"
+                        title="Delete Reward"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -185,7 +225,6 @@ export default function RewardCatalogTab({ isModalOpen, setIsModalOpen }) {
         isOpen={isModalOpen}
         onClose={handleModalClose}
         onSuccess={handleSaveReward}
-        partnerStores={MOCK_PARTNER_STORES}
         editReward={editingReward}
       />
     </div>

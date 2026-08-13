@@ -45,62 +45,6 @@ const getLevelInfo = (score) => {
   return [...LEVELS].reverse().find(l => score >= l.threshold) || LEVELS[0];
 };
 
-const MOCK_REWARDS = [
-  {
-    id: 'm1',
-    name: '10% Grocery Discount',
-    description: 'Valid at partner stores online',
-    creditsRequired: 80,
-    quantityAvailable: 8,
-    category: 'Discount Code',
-    imageUrl: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=400',
-    type: 'digital'
-  },
-  {
-    id: 'm2',
-    name: '5GB Data Bundle',
-    description: 'Instant digital top-up',
-    creditsRequired: 120,
-    quantityAvailable: 100,
-    category: 'Data Bundle',
-    imageUrl: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&q=80&w=400',
-    type: 'digital'
-  },
-  {
-    id: 'm3',
-    name: 'Plant a Tree',
-    description: 'We plant one tree in your name',
-    creditsRequired: 50,
-    quantityAvailable: 999,
-    category: 'Donation',
-    imageUrl: 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&q=80&w=400',
-    type: 'digital'
-  }
-];
-
-const MOCK_CLAIMS = [
-  {
-    id: 'mc1',
-    reward: { name: '10% Grocery Discount' },
-    claimedAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-    status: 'COLLECTED',
-    redemptionCode: 'CR-1047-41MF40PZ7'
-  },
-  {
-    id: 'mc2',
-    reward: { name: '10% Grocery Discount' },
-    claimedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 4).toISOString(),
-    status: 'APPROVED',
-    redemptionCode: null
-  },
-  {
-    id: 'mc3',
-    reward: { name: 'Plant a Tree' },
-    claimedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 14).toISOString(),
-    status: 'PENDING',
-    redemptionCode: null
-  }
-];
 
 const PodiumCup = ({ rank }) => {
   const isFirst = rank === 1;
@@ -207,7 +151,7 @@ export default function RewardsPage() {
       const results = await Promise.all(reqs);
       const rewardsRes = results[0];
       const rewardsData = rewardsRes?.data?.data || [];
-      setRewards(rewardsData.length > 0 ? rewardsData : MOCK_REWARDS);
+      setRewards(rewardsData);
       
       if (token) {
         const balRes = results[1]?.data?.data;
@@ -221,7 +165,7 @@ export default function RewardsPage() {
         })));
         
         const claimsData = results[3]?.data?.data || [];
-        setMyClaims(claimsData.length > 0 ? claimsData : MOCK_CLAIMS);
+        setMyClaims(claimsData);
         
         setTransactions(results[4]?.data?.data?.content || []);
       }

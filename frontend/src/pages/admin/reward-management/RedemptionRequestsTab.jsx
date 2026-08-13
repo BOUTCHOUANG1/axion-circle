@@ -1,30 +1,60 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, ArrowLeft, ArrowRight, Eye, ChevronDown } from 'lucide-react';
-import { MOCK_REDEMPTION_REQUESTS } from './mockData';
+import toast from 'react-hot-toast';
+import api from '../../../services/api';
 
 export default function RedemptionRequestsTab() {
-  const [requests, setRequests] = useState(MOCK_REDEMPTION_REQUESTS);
+  const [requests, setRequests] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchRequests = async () => {
+    try {
+      setIsLoading(true);
+      const res = await api.get('/admin/redemption-requests');
+      setRequests(res.data?.data?.content || res.data?.data || []);
+    } catch (error) {
+      toast.error('Failed to load redemption requests');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRequests();
+  }, []);
   
   const [page, setPage] = useState(0);
   const totalPages = 1;
 
-  const filteredRequests = requests.filter(req => 
-    req.userName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    req.storeName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredRequests = requests.filter(req => {
+    const userName = req.userName || req.user?.displayName || req.user?.firstName || req.user?.email || '';
+    const storeName = req.storeName || req.reward?.partnerStore?.name || req.reward?.store?.name || req.reward?.store || '';
+    return userName.toLowerCase().includes((searchTerm || '').toLowerCase()) || 
+           storeName.toLowerCase().includes((searchTerm || '').toLowerCase());
+  });
 
   const getStatusColor = (status) => {
-    switch (status) {
-      case 'Pending':
+    switch (status?.toUpperCase()) {
+      case 'PENDING':
         return 'bg-[#FEF9C3] text-[#A16207]';
-      case 'Approved':
-      case 'Collected':
+      case 'APPROVED':
+      case 'COLLECTED':
         return 'bg-[#E9FFEA] text-[#127C2F]';
-      case 'Rejected':
+      case 'REJECTED':
         return 'bg-[#FEE2E2] text-[#EF4444]';
       default:
         return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      await api.patch(`/admin/redemption-requests/${id}/status`, { status: newStatus });
+      setRequests(prev => prev.map(req => req.id === id ? { ...req, status: newStatus } : req));
+      toast.success(`Request status updated to ${newStatus}`);
+    } catch (error) {
+      toast.error('Failed to update status');
     }
   };
 
@@ -50,18 +80,25 @@ export default function RedemptionRequestsTab() {
           <thead>
             <tr className="bg-white border-b border-white-stroke text-xs font-semibold text-paragraph h-[44px]">
               <th className="px-4 py-3 whitespace-nowrap">User Name</th>
-              <th className="px-4 py-3 whitespace-nowrap">Store Name</th>
+              <th className="px-4 py-3 whitespace-nowrap">Reward Name</th>
               <th className="px-4 py-3 whitespace-nowrap">Category</th>
-              <th className="px-4 py-3 whitespace-nowrap">Credits</th>
-              <th className="px-4 py-3 whitespace-nowrap">Date</th>
-              <th className="px-4 py-3 whitespace-nowrap">Status</th>
-              <th className="px-4 py-3 whitespace-nowrap w-12 text-center">Action</th>
+              <th className="px-4 py-3 whitespace-nowrap">Credits Spent</th>
+              <th className="px-4 py-3 whitespace-nowrap">Claimed Date</th>
+              <th className="px-4 py-3 whitespace-nowrap w-40">Status Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white-stroke text-sm">
-            {filteredRequests.length === 0 ? (
+            {isLoading ? (
               <tr>
-                <td colSpan="7" className="px-5 py-12 text-center text-paragraph">
+                <td colSpan="6" className="px-5 py-12 text-center">
+                  <div className="flex justify-center">
+                    <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                </td>
+              </tr>
+            ) : filteredRequests.length === 0 ? (
+              <tr>
+                <td colSpan="6" className="px-5 py-12 text-center text-paragraph">
                   No redemption requests found.
                 </td>
               </tr>
@@ -69,24 +106,36 @@ export default function RedemptionRequestsTab() {
               filteredRequests.map((req) => (
                 <tr key={req.id} className="hover:bg-white-bg/50 transition-colors bg-white h-[72px]">
                   <td className="px-4 py-4">
-                    <span className="font-bold text-[#1F2937] text-sm">{req.userName}</span>
+                    <span className="font-bold text-[#1F2937] text-sm">{req.userName || req.user?.displayName || req.user?.firstName || req.user?.email || 'Unknown User'}</span>
                   </td>
                   <td className="px-4 py-4 text-[#4B5563] font-medium text-sm">
-                    {req.storeName}
+                    {req.rewardName || 'Unknown Reward'}
                   </td>
                   <td className="px-4 py-4 text-[#4B5563] font-medium text-sm">
-                    {req.category}
+                    {req.rewardCategory || req.category || 'N/A'}
                   </td>
                   <td className="px-4 py-4 font-bold text-sm text-primary">
-                    {req.credits.toLocaleString()}
+                    {((req.creditsSpent ?? req.credits ?? req.reward?.creditsRequired) || 0).toLocaleString()}
                   </td>
                   <td className="px-4 py-4 text-[#4B5563] font-medium text-sm">
-                    {new Date(req.date).toLocaleDateString()}
+                    {new Date(req.date || req.claimedAt || req.createdAt || Date.now()).toLocaleDateString()}
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap">
-                    <span className={`px-3 py-1 text-[12px] font-bold rounded-full ${getStatusColor(req.status)}`}>
-                      {req.status}
-                    </span>
+                    <div className="relative inline-block">
+                      <select 
+                        value={req.status?.toUpperCase()} 
+                        onChange={(e) => handleStatusChange(req.id, e.target.value)}
+                        className={`px-3 py-1 pr-8 text-[12px] font-bold rounded-full appearance-none cursor-pointer border border-transparent hover:border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all ${getStatusColor(req.status)}`}
+                      >
+                        <option value="PENDING">PENDING</option>
+                        <option value="APPROVED">APPROVED</option>
+                        <option value="REJECTED">REJECTED</option>
+                        <option value="COLLECTED">COLLECTED</option>
+                      </select>
+                      <div className="absolute inset-y-0 right-2 flex items-center pointer-events-none">
+                        <ChevronDown className={`w-3 h-3 ${getStatusColor(req.status).split(' ')[1]}`} />
+                      </div>
+                    </div>
                   </td>
                   <td className="px-4 py-4 text-center">
                     <button 

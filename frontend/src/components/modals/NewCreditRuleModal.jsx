@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../../services/api';
 
 export default function NewCreditRuleModal({ isOpen, onClose, onSuccess, editRule = null }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -87,11 +88,22 @@ export default function NewCreditRuleModal({ isOpen, onClose, onSuccess, editRul
 
     setIsSubmitting(true);
     try {
-      // MOCK API CALL - since backend endpoints are missing
-      // In production: await api.post('/admin/credit-rules', formData) or PUT /admin/credit-rules/{id}
-      
-      // Simulate network request
-      await new Promise(resolve => setTimeout(resolve, 800));
+      const payload = {
+        ...formData,
+        award: parseInt(formData.award, 10),
+        credits: parseInt(formData.award, 10),
+        multiplier: parseFloat(formData.multiplier),
+        dailyCap: parseInt(formData.dailyCap, 10),
+        monthlyCap: parseInt(formData.monthlyCap, 10),
+        name: formData.title,
+        status: formData.enabled ? 'ACTIVE' : 'INACTIVE',
+      };
+
+      if (editRule && editRule.id && !editRule.isDuplicate) {
+        await api.put(`/admin/credit-rules/${editRule.id}`, payload);
+      } else {
+        await api.post('/admin/credit-rules', payload);
+      }
       
       toast.success(editRule && editRule.id && editRule.isDuplicate !== true ? 'Rule updated successfully' : 'Rule created successfully');
       
@@ -107,7 +119,7 @@ export default function NewCreditRuleModal({ isOpen, onClose, onSuccess, editRul
       }
       onClose();
     } catch (error) {
-      toast.error('Failed to save credit rule');
+      toast.error(error.response?.data?.message || 'Failed to save credit rule. You may only be able to update existing rules.');
     } finally {
       setIsSubmitting(false);
     }

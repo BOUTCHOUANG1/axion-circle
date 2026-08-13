@@ -62,14 +62,7 @@ export default function AdminRewardManagementPage() {
             </p>
           </div>
           <div className="flex items-center gap-3 self-start sm:self-auto">
-            {currentTab === 'credit-rules' && (
-              <button 
-                onClick={() => setIsCreditRuleModalOpen(true)}
-                className="inline-flex items-center justify-center px-4 py-2 bg-primary text-white font-bold rounded-xl hover:bg-primary/90 transition-colors shadow-sm text-sm"
-              >
-                Add Credit Rule
-              </button>
-            )}
+
             {currentTab === 'partner-stores' && (
               <button 
                 onClick={() => setIsPartnerStoreModalOpen(true)}

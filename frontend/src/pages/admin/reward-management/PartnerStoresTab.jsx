@@ -1,13 +1,32 @@
-import React, { useState } from 'react';
-import { Search, ArrowLeft, ArrowRight, Edit, AlertCircle } from 'lucide-react';
-import { MOCK_PARTNER_STORES } from './mockData';
+import React, { useState, useEffect } from 'react';
+import { Search, ArrowLeft, ArrowRight, Edit, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AddPartnerStoreModal from '../../../components/modals/AddPartnerStoreModal';
+import api from '../../../services/api';
 
 export default function PartnerStoresTab({ isModalOpen, setIsModalOpen }) {
-  const [stores, setStores] = useState(MOCK_PARTNER_STORES);
+  const [stores, setStores] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingStore, setEditingStore] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [storeToDelete, setStoreToDelete] = useState(null);
+
+  const fetchStores = async () => {
+    try {
+      setIsLoading(true);
+      const res = await api.get('/admin/partner-stores');
+      setStores(res.data?.data || []);
+    } catch (error) {
+      toast.error('Failed to load partner stores');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStores();
+  }, []);
   
   const [page, setPage] = useState(0);
   const totalPages = 1;
@@ -32,16 +51,40 @@ export default function PartnerStoresTab({ isModalOpen, setIsModalOpen }) {
     });
   };
 
-  const handleToggleStatus = (id) => {
-    setStores(prev => prev.map(store => {
-      if (store.id === id) {
-        const isSuspended = store.status === 'Suspended';
-        const newStatus = isSuspended ? 'Active' : 'Suspended';
-        toast.success(`Store ${isSuspended ? 'activated' : 'suspended'} successfully`);
-        return { ...store, status: newStatus };
-      }
-      return store;
-    }));
+  const handleToggleStatus = async (id, currentStatus) => {
+    try {
+      const isSuspended = currentStatus?.toUpperCase() === 'SUSPENDED';
+      const newStatus = isSuspended ? 'ACTIVE' : 'SUSPENDED';
+      await api.patch(`/admin/partner-stores/${id}/status`, { status: newStatus });
+      setStores(prev => prev.map(store => {
+        if (store.id === id) {
+          return { ...store, status: newStatus };
+        }
+        return store;
+      }));
+      toast.success(`Store ${isSuspended ? 'activated' : 'suspended'} successfully`);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update store status');
+    }
+  };
+
+  const confirmDelete = (id) => {
+    setStoreToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const executeDelete = async () => {
+    if (!storeToDelete) return;
+    try {
+      await api.delete(`/admin/partner-stores/${storeToDelete}`);
+      setStores(prev => prev.filter(store => store.id !== storeToDelete));
+      toast.success('Store deleted successfully');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to delete store');
+    } finally {
+      setIsDeleteModalOpen(false);
+      setStoreToDelete(null);
+    }
   };
 
   const filteredStores = stores.filter(store => 
@@ -75,12 +118,20 @@ export default function PartnerStoresTab({ isModalOpen, setIsModalOpen }) {
               <th className="px-4 py-3 whitespace-nowrap">Location</th>
               <th className="px-4 py-3 whitespace-nowrap">Redemption Limit</th>
               <th className="px-4 py-3 whitespace-nowrap">Status</th>
-              <th className="px-4 py-3 whitespace-nowrap w-[146px]">Action</th>
-              <th className="px-4 py-3 whitespace-nowrap w-12"></th>
+              <th className="px-4 py-3 whitespace-nowrap w-[146px]">Status Action</th>
+              <th className="px-4 py-3 whitespace-nowrap w-24 text-center">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white-stroke text-sm">
-            {filteredStores.length === 0 ? (
+            {isLoading ? (
+              <tr>
+                <td colSpan="7" className="px-5 py-12 text-center">
+                  <div className="flex justify-center">
+                    <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                </td>
+              </tr>
+            ) : filteredStores.length === 0 ? (
               <tr>
                 <td colSpan="7" className="px-5 py-12 text-center text-paragraph">
                   No partner stores found.
@@ -101,38 +152,46 @@ export default function PartnerStoresTab({ isModalOpen, setIsModalOpen }) {
                     <td className="px-4 py-4 text-[#4B5563] font-medium text-sm">
                       {store.location}
                     </td>
-                    <td className="px-4 py-4 text-[#4B5563] font-medium text-sm">
-                      {store.redemptionLimit}
+                    <td className="px-4 py-4 whitespace-nowrap text-[13px] font-medium text-black-text">
+                      {store.redemptionLimit ?? store.monthlyLimit ?? 0}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5">
-                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSuspended ? 'bg-[#EF4444]' : 'bg-[#127C2F]'}`}></span>
-                        <span className={`text-[13px] font-bold ${isSuspended ? 'text-[#EF4444]' : 'text-[#127C2F]'}`}>
-                          {store.status}
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${store.status?.toUpperCase() === 'ACTIVE' ? 'bg-[#127C2F]' : 'bg-gray-400'}`}></div>
+                        <span className={`font-bold text-[12px] ${store.status?.toUpperCase() === 'ACTIVE' ? 'text-[#127C2F]' : 'text-gray-500'}`}>
+                          {store.status?.toUpperCase() || 'UNKNOWN'}
                         </span>
                       </div>
                     </td>
                     <td className="px-4 py-4 w-[146px]">
                       <button 
-                        onClick={() => handleToggleStatus(store.id)}
+                        onClick={() => handleToggleStatus(store.id, store.status)}
                         className={`px-4 py-1.5 rounded-full text-[13px] font-bold transition-all w-full max-w-[100px] block
-                          ${isSuspended 
+                          ${store.status?.toUpperCase() === 'SUSPENDED'
                             ? 'bg-[#E9FFEA] text-[#127C2F] hover:bg-[#E9FFEA]/80' 
                             : 'bg-[#FEE2E2] text-[#EF4444] hover:bg-[#FEE2E2]/80'
-                          }
-                        `}
+                          }`}
                       >
-                        {isSuspended ? 'Activate' : 'Suspend'}
+                        {store.status?.toUpperCase() === 'SUSPENDED' ? 'Activate' : 'Suspend'}
                       </button>
                     </td>
-                    <td className="px-4 py-4 text-center">
-                      <button 
-                        onClick={() => handleEdit(store)}
-                        className="p-2 text-black-icon hover:text-primary transition-colors focus:outline-none bg-white-bg rounded-lg"
-                        title="Edit Store"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
+                    <td className="px-4 py-4">
+                      <div className="flex justify-center gap-2">
+                        <button 
+                          onClick={() => handleEdit(store)}
+                          className="p-2 text-black-icon hover:text-primary transition-colors focus:outline-none bg-white-bg rounded-lg"
+                          title="Edit Store"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => confirmDelete(store.id)}
+                          className="p-2 text-alert-error hover:bg-alert-errorLight transition-colors focus:outline-none bg-white-bg rounded-lg"
+                          title="Delete Store"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -174,6 +233,31 @@ export default function PartnerStoresTab({ isModalOpen, setIsModalOpen }) {
         onSuccess={handleSaveStore}
         editStore={editingStore}
       />
+      {/* Custom Delete Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 text-center">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Delete Partner Store</h3>
+            <p className="text-gray-500 mb-6">
+              Are you sure you want to delete this partner store? This action cannot be undone.
+            </p>
+            <div className="flex items-center justify-center gap-3">
+              <button 
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="px-4 py-2 font-semibold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={executeDelete}
+                className="px-4 py-2 font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Delete Store
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
