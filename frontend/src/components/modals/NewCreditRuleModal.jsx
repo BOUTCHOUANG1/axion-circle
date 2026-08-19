@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
+import CustomSelect from '../common/CustomSelect';
 
 export default function NewCreditRuleModal({ isOpen, onClose, onSuccess, editRule = null }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -97,6 +98,7 @@ export default function NewCreditRuleModal({ isOpen, onClose, onSuccess, editRul
         monthlyCap: parseInt(formData.monthlyCap, 10),
         name: formData.title,
         status: formData.enabled ? 'ACTIVE' : 'INACTIVE',
+        isActive: formData.enabled
       };
 
       if (editRule && editRule.id && !editRule.isDuplicate) {
@@ -176,44 +178,34 @@ export default function NewCreditRuleModal({ isOpen, onClose, onSuccess, editRul
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="trigger" className="block text-sm font-semibold text-black mb-1.5">Trigger</label>
-                <div className="relative">
-                  <select
-                    id="trigger"
-                    name="trigger"
-                    value={formData.trigger}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2.5 bg-white border border-white-stroke rounded-xl text-paragraph text-sm focus:outline-none focus:border-primary transition-colors appearance-none pr-10"
-                  >
-                    <option value="REPORT_SUBMITTED">Report Submitted</option>
-                    <option value="REPORT_ACKNOWLEDGED">Report Acknowledged</option>
-                    <option value="REPORT_RESOLVED">Report Resolved</option>
-                    <option value="USER_FIRST_REPORT">User First Report</option>
-                  </select>
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                    <svg className="w-4 h-4 text-black-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                  </div>
-                </div>
+                <CustomSelect
+                  id="trigger"
+                  name="trigger"
+                  value={formData.trigger}
+                  onChange={handleChange}
+                  options={[
+                    { value: 'REPORT_SUBMITTED', label: 'Report Submitted' },
+                    { value: 'REPORT_ACKNOWLEDGED', label: 'Report Acknowledged' },
+                    { value: 'REPORT_RESOLVED', label: 'Report Resolved' },
+                    { value: 'USER_FIRST_REPORT', label: 'User First Report' }
+                  ]}
+                />
               </div>
 
               <div>
                 <label htmlFor="appliesTo" className="block text-sm font-semibold text-black mb-1.5">Applies To</label>
-                <div className="relative">
-                  <select
-                    id="appliesTo"
-                    name="appliesTo"
-                    value={formData.appliesTo}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2.5 bg-white border border-white-stroke rounded-xl text-paragraph text-sm focus:outline-none focus:border-primary transition-colors appearance-none pr-10"
-                  >
-                    <option value="ALL">All Categories</option>
-                    <option value="ILLEGAL_DUMPING">Illegal Dumping</option>
-                    <option value="BLOCKED_DRAIN">Blocked Drain</option>
-                    <option value="STREET_LITTER">Street Litter</option>
-                  </select>
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                    <svg className="w-4 h-4 text-black-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                  </div>
-                </div>
+                <CustomSelect
+                  id="appliesTo"
+                  name="appliesTo"
+                  value={formData.appliesTo}
+                  onChange={handleChange}
+                  options={[
+                    { value: 'ALL', label: 'All Categories' },
+                    { value: 'ILLEGAL_DUMPING', label: 'Illegal Dumping' },
+                    { value: 'BLOCKED_DRAIN', label: 'Blocked Drain' },
+                    { value: 'STREET_LITTER', label: 'Street Litter' }
+                  ]}
+                />
               </div>
             </div>
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
+import CustomSelect from '../common/CustomSelect';
 
 export default function AddPartnerStoreModal({ isOpen, onClose, onSuccess, editStore = null }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -12,6 +13,11 @@ export default function AddPartnerStoreModal({ isOpen, onClose, onSuccess, editS
     name: '',
     category: '',
     location: '',
+    phone: '',
+    email: '',
+    contactPerson: '',
+    address: '',
+    description: '',
     monthlyLimit: 5000,
     qrStatus: 'PENDING',
     active: true
@@ -25,16 +31,26 @@ export default function AddPartnerStoreModal({ isOpen, onClose, onSuccess, editS
           name: editStore.name || '',
           category: editStore.category || '',
           location: editStore.location || '',
+          phone: editStore.phone || '',
+          email: editStore.email || '',
+          contactPerson: editStore.contactPerson || '',
+          address: editStore.address || '',
+          description: editStore.description || '',
           monthlyLimit: editStore.redemptionLimit || editStore.monthlyLimit || 5000,
           qrStatus: editStore.qrStatus || 'PENDING',
           status: editStore.status || 'ACTIVE',
-          active: editStore.active !== false
+          active: editStore.status ? editStore.status.toUpperCase() === 'ACTIVE' : editStore.active !== false
         });
       } else {
         setFormData({
           name: '',
           category: '',
           location: '',
+          phone: '',
+          email: '',
+          contactPerson: '',
+          address: '',
+          description: '',
           monthlyLimit: 5000,
           qrStatus: 'PENDING',
           active: true
@@ -82,7 +98,8 @@ export default function AddPartnerStoreModal({ isOpen, onClose, onSuccess, editS
       const payload = {
         ...formData,
         redemptionLimit: formData.monthlyLimit,
-        monthlyLimit: formData.monthlyLimit
+        monthlyLimit: formData.monthlyLimit,
+        status: formData.active ? 'ACTIVE' : 'SUSPENDED'
       };
       if (onSuccess) {
         let savedStore;
@@ -170,24 +187,20 @@ export default function AddPartnerStoreModal({ isOpen, onClose, onSuccess, editS
 
                 <div>
                   <label htmlFor="category" className="block text-sm font-semibold text-black mb-1.5">Category</label>
-                  <div className="relative">
-                    <select
-                      id="category"
-                      name="category"
-                      value={formData.category}
-                      onChange={handleChange}
-                      className="w-full px-4 py-2.5 bg-white border border-white-stroke rounded-xl text-paragraph text-sm focus:outline-none focus:border-primary transition-colors appearance-none pr-10"
-                    >
-                      <option value="">All Categories</option>
-                      <option value="GROCERY">Grocery</option>
-                      <option value="RETAIL">Retail</option>
-                      <option value="SERVICE">Service</option>
-                      <option value="TRANSPORT">Transport</option>
-                    </select>
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                      <svg className="w-4 h-4 text-black-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </div>
-                  </div>
+                  <CustomSelect
+                    id="category"
+                    name="category"
+                    value={formData.category}
+                    onChange={handleChange}
+                    placeholder="All Categories"
+                    options={[
+                      { value: '', label: 'All Categories' },
+                      { value: 'GROCERY', label: 'Grocery' },
+                      { value: 'RETAIL', label: 'Retail' },
+                      { value: 'SERVICE', label: 'Service' },
+                      { value: 'TRANSPORT', label: 'Transport' }
+                    ]}
+                  />
                 </div>
               </div>
 
@@ -204,6 +217,73 @@ export default function AddPartnerStoreModal({ isOpen, onClose, onSuccess, editS
                     className="w-full px-4 py-2.5 bg-white border border-white-stroke rounded-xl text-black text-sm focus:outline-none focus:border-primary transition-colors"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="contactPerson" className="block text-sm font-semibold text-black mb-1.5">Contact Person</label>
+                  <input
+                    type="text"
+                    id="contactPerson"
+                    name="contactPerson"
+                    value={formData.contactPerson}
+                    onChange={handleChange}
+                    placeholder="John Doe"
+                    className="w-full px-4 py-2.5 bg-white border border-white-stroke rounded-xl text-black text-sm focus:outline-none focus:border-primary transition-colors"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="phone" className="block text-sm font-semibold text-black mb-1.5">Phone Number</label>
+                  <input
+                    type="tel"
+                    id="phone"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    placeholder="+234..."
+                    className="w-full px-4 py-2.5 bg-white border border-white-stroke rounded-xl text-black text-sm focus:outline-none focus:border-primary transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="email" className="block text-sm font-semibold text-black mb-1.5">Email Address</label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    placeholder="store@example.com"
+                    className="w-full px-4 py-2.5 bg-white border border-white-stroke rounded-xl text-black text-sm focus:outline-none focus:border-primary transition-colors"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="address" className="block text-sm font-semibold text-black mb-1.5">Full Address</label>
+                  <input
+                    type="text"
+                    id="address"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleChange}
+                    placeholder="123 Main St..."
+                    className="w-full px-4 py-2.5 bg-white border border-white-stroke rounded-xl text-black text-sm focus:outline-none focus:border-primary transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="description" className="block text-sm font-semibold text-black mb-1.5">Description</label>
+                <textarea
+                  id="description"
+                  name="description"
+                  value={formData.description}
+                  onChange={handleChange}
+                  placeholder="Store description..."
+                  rows="3"
+                  className="w-full px-4 py-2.5 bg-white border border-white-stroke rounded-xl text-black text-sm focus:outline-none focus:border-primary transition-colors resize-none"
+                />
               </div>
 
             </div>
@@ -228,6 +308,39 @@ export default function AddPartnerStoreModal({ isOpen, onClose, onSuccess, editS
                     onChange={handleChange}
                     className="w-full px-4 py-2.5 bg-white border border-white-stroke rounded-xl text-black text-sm focus:outline-none focus:border-primary transition-colors"
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="qrStatus" className="block text-sm font-semibold text-black mb-1.5">QR Status</label>
+                  <CustomSelect
+                    id="qrStatus"
+                    name="qrStatus"
+                    value={formData.qrStatus}
+                    onChange={handleChange}
+                    options={[
+                      { value: 'PENDING', label: 'Pending' },
+                      { value: 'GENERATED', label: 'Generated' },
+                      { value: 'ASSIGNED', label: 'Assigned' }
+                    ]}
+                  />
+                </div>
+                <div className="flex flex-col justify-center">
+                  <label className="flex items-center gap-3 cursor-pointer mt-7">
+                    <div className="relative">
+                      <input 
+                        type="checkbox" 
+                        name="active" 
+                        checked={formData.active} 
+                        onChange={handleChange} 
+                        className="sr-only"
+                      />
+                      <div className={`block w-10 h-6 rounded-full transition-colors ${formData.active ? 'bg-primary' : 'bg-gray-300'}`}></div>
+                      <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${formData.active ? 'transform translate-x-4' : ''}`}></div>
+                    </div>
+                    <span className="text-sm font-semibold text-black">Store Active</span>
+                  </label>
                 </div>
               </div>
             </div>

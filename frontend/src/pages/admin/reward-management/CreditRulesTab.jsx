@@ -33,7 +33,7 @@ export default function CreditRulesTab({ isModalOpen, setIsModalOpen }) {
       });
       setRules(prev => prev.map(rule => {
         if (rule.id === id) {
-          return { ...rule, enabled: newStatus };
+          return { ...rule, status: newStatus ? 'ACTIVE' : 'INACTIVE', isActive: newStatus, enabled: newStatus };
         }
         return rule;
       }));
@@ -75,7 +75,9 @@ export default function CreditRulesTab({ isModalOpen, setIsModalOpen }) {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {rules.map((rule) => (
+          {rules.map((rule) => {
+            const isRuleActive = rule.status === 'ACTIVE' || rule.isActive === true || rule.enabled === true;
+            return (
           <div 
             key={rule.id} 
             className="bg-white rounded-[20px] shadow-sm flex flex-col w-full overflow-hidden"
@@ -85,8 +87,8 @@ export default function CreditRulesTab({ isModalOpen, setIsModalOpen }) {
               {/* Header: Title, Pill, Toggle */}
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  <h3 className="text-xl font-bold text-black font-heading leading-tight">{rule.title}</h3>
-                  {rule.enabled && (
+                  <h3 className="text-xl font-bold text-black font-heading leading-tight">{rule.title || rule.name}</h3>
+                  {isRuleActive && (
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#E7F2E9] text-[#127C2F]">
                       <span className="w-1.5 h-1.5 bg-[#127C2F] rounded-full mr-1.5"></span>
                       Active
@@ -95,12 +97,12 @@ export default function CreditRulesTab({ isModalOpen, setIsModalOpen }) {
                 </div>
                 {/* Toggle Switch */}
                 <button 
-                  onClick={() => handleToggleActive(rule.id, rule.enabled)}
-                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${rule.enabled ? 'bg-[#127C2F]' : 'bg-[#D1D5DB]'}`}
-                  aria-label={`Toggle ${rule.title}`}
+                  onClick={() => handleToggleActive(rule.id, isRuleActive)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${isRuleActive ? 'bg-[#127C2F]' : 'bg-[#D1D5DB]'}`}
+                  aria-label={`Toggle ${rule.title || rule.name}`}
                 >
                   <span
-                    className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${(rule.isActive || rule.enabled) ? 'translate-x-[22px]' : 'translate-x-[2px]'}`}
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${isRuleActive ? 'translate-x-[22px]' : 'translate-x-[2px]'}`}
                   />
                 </button>
               </div>
@@ -175,7 +177,7 @@ export default function CreditRulesTab({ isModalOpen, setIsModalOpen }) {
 
             </div>
           </div>
-        ))}
+          )})}
       </div>
       )}
 

@@ -6,14 +6,19 @@ import api from '../../../services/api';
 
 export default function RewardCatalogTab({ isModalOpen, setIsModalOpen }) {
   const [rewards, setRewards] = useState([]);
+  const [partnerStores, setPartnerStores] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchRewards = async () => {
     try {
       setIsLoading(true);
-      const res = await api.get('/admin/rewards');
-      setRewards(res.data?.data || []);
+      const [resRewards, resStores] = await Promise.all([
+        api.get('/admin/rewards'),
+        api.get('/admin/partner-stores')
+      ]);
+      setRewards(resRewards.data?.data || []);
+      setPartnerStores(resStores.data?.data || []);
     } catch (error) {
       toast.error('Failed to load reward catalog');
     } finally {
@@ -65,10 +70,12 @@ export default function RewardCatalogTab({ isModalOpen, setIsModalOpen }) {
     }
   };
 
-  const filteredRewards = rewards.filter(rew => 
-    (rew.name || '').toLowerCase().includes((searchTerm || '').toLowerCase()) || 
-    (rew.store?.name || rew.store || '').toLowerCase().includes((searchTerm || '').toLowerCase())
-  );
+  const filteredRewards = rewards.filter(rew => {
+    const storeObj = partnerStores.find(s => s.id === rew.partner_store_id || s.id === rew.partnerStore?.id);
+    const storeName = rew.partnerStore?.name || storeObj?.name || (typeof rew.store === 'object' ? rew.store?.name : rew.store) || '';
+    return (rew.name || '').toLowerCase().includes((searchTerm || '').toLowerCase()) || 
+           storeName.toLowerCase().includes((searchTerm || '').toLowerCase());
+  });
 
   return (
     <div className="bg-white border border-white-stroke rounded-2xl shadow-sm flex flex-col w-full h-full relative">
@@ -126,7 +133,7 @@ export default function RewardCatalogTab({ isModalOpen, setIsModalOpen }) {
                     {((rew.creditsRequired ?? rew.credits) || 0).toLocaleString()}
                   </td>
                   <td className="px-4 py-4 text-[#4B5563] font-medium text-sm">
-                    {typeof rew.store === 'object' ? rew.store?.name : rew.store || 'Unknown'}
+                    {rew.partnerStore?.name || partnerStores.find(s => String(s.id) === String(rew.partner_store_id))?.name || (typeof rew.store === 'object' ? rew.store?.name : rew.store) || 'Unknown'}
                   </td>
                   <td className="px-4 py-4 text-[#4B5563] font-medium text-sm">
                     {rew.quantityAvailable ?? 'N/A'}

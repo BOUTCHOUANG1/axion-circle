@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
+import CustomSelect from '../common/CustomSelect';
 
 export default function NewRewardModal({ isOpen, onClose, onSuccess, editReward = null }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -92,6 +93,7 @@ export default function NewRewardModal({ isOpen, onClose, onSuccess, editReward 
         ...formData,
         quantityAvailable: formData.stock,
         isActive: formData.status === 'ACTIVE',
+        partner_store_id: formData.partnerId
       };
       
       if (editReward && editReward.id) {
@@ -105,7 +107,13 @@ export default function NewRewardModal({ isOpen, onClose, onSuccess, editReward 
       toast.success(editReward && editReward.id ? 'Reward updated successfully' : 'Reward created successfully');
       
       if (onSuccess) {
-        onSuccess(savedReward || payload);
+        const selectedStore = partnerStores.find(s => String(s.id) === String(payload.partner_store_id));
+        const finalReward = {
+          ...payload,
+          ...savedReward,
+          partnerStore: savedReward?.partnerStore || (selectedStore ? { id: selectedStore.id, name: selectedStore.name } : null)
+        };
+        onSuccess(finalReward);
       }
       onClose();
     } catch (error) {
@@ -180,44 +188,34 @@ export default function NewRewardModal({ isOpen, onClose, onSuccess, editReward 
 
               <div>
                 <label htmlFor="status" className="block text-sm font-semibold text-black mb-1.5">Status</label>
-                <div className="relative">
-                  <select
-                    id="status"
-                    name="status"
-                    value={formData.status}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2.5 bg-white border border-white-stroke rounded-xl text-paragraph text-sm focus:outline-none focus:border-primary transition-colors appearance-none pr-10"
-                  >
-                    <option value="ACTIVE">Active</option>
-                    <option value="DRAFT">Draft</option>
-                  </select>
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                    <svg className="w-4 h-4 text-black-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                  </div>
-                </div>
+                <CustomSelect
+                  id="status"
+                  name="status"
+                  value={formData.status}
+                  onChange={handleChange}
+                  options={[
+                    { value: 'ACTIVE', label: 'Active' },
+                    { value: 'DRAFT', label: 'Draft' }
+                  ]}
+                />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="partnerId" className="block text-sm font-semibold text-black mb-1.5">Partner</label>
-                <div className="relative">
-                  <select
-                    id="partnerId"
-                    name="partnerId"
-                    value={formData.partnerId}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2.5 bg-white border border-white-stroke rounded-xl text-paragraph text-sm focus:outline-none focus:border-primary transition-colors appearance-none pr-10"
-                  >
-                    {partnerStores.length === 0 && <option value="">No partners found</option>}
-                    {partnerStores.map(partner => (
-                      <option key={partner.id} value={partner.id}>{partner.name}</option>
-                    ))}
-                  </select>
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                    <svg className="w-4 h-4 text-black-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                  </div>
-                </div>
+                <CustomSelect
+                  id="partnerId"
+                  name="partnerId"
+                  value={formData.partnerId}
+                  onChange={handleChange}
+                  placeholder="Select a partner"
+                  options={
+                    partnerStores.length === 0 
+                      ? [{ value: '', label: 'No partners found' }] 
+                      : partnerStores.map(p => ({ value: p.id, label: p.name }))
+                  }
+                />
               </div>
 
               <div>
