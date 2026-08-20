@@ -33,6 +33,7 @@ public class SecurityConfig {
                 // Public endpoints
                 .requestMatchers("/health", "/actuator/**").permitAll()
                 .requestMatchers("/auth/**").permitAll()
+                .requestMatchers("/newsletter/**").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                 // Report viewing + status history is public (GET only)
                 .requestMatchers(HttpMethod.GET, "/reports/**").permitAll()

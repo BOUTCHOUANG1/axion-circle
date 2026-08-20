@@ -146,6 +146,13 @@ public class AdminRewardController {
         return ResponseEntity.ok(ApiResponse.ok(creditRuleRepository.findAllByOrderByCreatedAtAsc()));
     }
 
+    @Operation(summary = "Create a new credit rule (Admin)", security = @SecurityRequirement(name = "Bearer Auth"))
+    @PostMapping("/credit-rules")
+    public ResponseEntity<ApiResponse<CreditRule>> createCreditRule(@RequestBody CreditRule rule) {
+        rule.setId(null);
+        return ResponseEntity.ok(ApiResponse.created(creditRuleRepository.save(rule), "Credit rule created"));
+    }
+
     @Operation(summary = "Update credit rule (Admin)", security = @SecurityRequirement(name = "Bearer Auth"))
     @PutMapping("/credit-rules/{id}")
     public ResponseEntity<ApiResponse<CreditRule>> updateCreditRule(
